@@ -1,0 +1,9 @@
+﻿{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "module": "Node16",
+    "outDir": "dist/main",
+    "types": ["node", "electron"]
+  },
+  "include": ["src/main/**/*"]
+}
