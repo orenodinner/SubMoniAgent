@@ -61,5 +61,13 @@ export default function CharacterCanvas({ state }: Props) {
     return () => cancelAnimationFrame(rafId);
   }, [state, imageLoaded]);
 
-  return <canvas ref={canvasRef} width={CANVAS_SIZE} height={CANVAS_SIZE} style={{ imageRendering: "pixelated", width: "100%", maxWidth: 420 }} />;
+  return (
+    <canvas
+      ref={canvasRef}
+      width={CANVAS_SIZE}
+      height={CANVAS_SIZE}
+      className="character-canvas"
+      style={{ imageRendering: "pixelated" }}
+    />
+  );
 }
