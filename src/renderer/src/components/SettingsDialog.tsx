@@ -27,8 +27,38 @@ type AppConfig = {
 
 export default function SettingsDialog({ config, onSave, onClose }: SettingsDialogProps) {
   const [local, setLocal] = useState<AppConfig>(config);
+  const [oauthLoading, setOauthLoading] = useState(false);
+  const [oauthError, setOauthError] = useState<string | null>(null);
 
   useEffect(() => setLocal(config), [config]);
+
+  const handleOpenRouterOAuth = async () => {
+    if (!window.api?.startOpenRouterOAuth) {
+      setOauthError("このビルドではOAuthが有効化されていません。");
+      return;
+    }
+
+    setOauthLoading(true);
+    setOauthError(null);
+
+    try {
+      const result = await window.api.startOpenRouterOAuth();
+      if (result?.error) {
+        setOauthError(result.error);
+        return;
+      }
+      if (result?.key) {
+        setLocal((prev) => ({
+          ...prev,
+          llm: { ...prev.llm, apiKeyEncrypted: result.key, provider: "openrouter" },
+        }));
+      }
+    } catch (err) {
+      setOauthError(err instanceof Error ? err.message : "予期しないエラーが発生しました");
+    } finally {
+      setOauthLoading(false);
+    }
+  };
 
   return (
     <div className="settings-overlay">
@@ -55,6 +85,15 @@ export default function SettingsDialog({ config, onSave, onClose }: SettingsDial
             onChange={(e) => setLocal({ ...local, llm: { ...local.llm, apiKeyEncrypted: e.target.value } })}
           />
         </label>
+        <div className="oauth-row">
+          <button className="small-btn primary" onClick={handleOpenRouterOAuth} disabled={oauthLoading}>
+            {oauthLoading ? "連携中..." : "OpenRouterでOAuthログイン"}
+          </button>
+          <div className="oauth-hint">
+            OpenRouterでログインしてAPIキーを取得し、自動入力します。保存すると反映されます（現在: {local.llm.provider || "openai"}）。
+          </div>
+        </div>
+        {oauthError && <div className="oauth-error">{oauthError}</div>}
 
         <label>
           システムプロンプト

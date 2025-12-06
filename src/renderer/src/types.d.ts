@@ -6,6 +6,7 @@
       saveSettings: (config: any) => Promise<any>;
       listMcpServers: () => Promise<any>;
       getMcpStatus: () => Promise<any>;
+      startOpenRouterOAuth: () => Promise<{ key?: string; error?: string }>;
       onAssistantChunk: (callback: (data: { assistantId: string; chunk: string }) => void) => () => void;
       onAssistantMessage: (callback: (data: { assistantId: string; content: string; model: string }) => void) => () => void;
       onStateUpdate: (callback: (state: string) => void) => () => void;

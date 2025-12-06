@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld("api", {
   saveSettings: (config) => ipcRenderer.invoke("settings:save", config),
   listMcpServers: () => ipcRenderer.invoke("mcp:listServers"),
   getMcpStatus: () => ipcRenderer.invoke("mcp:getStatus"),
+  startOpenRouterOAuth: () => ipcRenderer.invoke("oauth:openrouter"),
   onAssistantChunk: (callback) => {
     const listener = (_event, data) => callback(data);
     ipcRenderer.on("chat:assistantChunk", listener);

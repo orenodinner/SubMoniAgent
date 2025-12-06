@@ -1,73 +1,34 @@
-﻿import React, { useEffect, useRef, useState } from "react";
-import spriteSheet from "../assets/pixel-sprite.png";
-import { animations, CharacterState, FRAME_SIZE } from "../characterAnimations";
-
-const CANVAS_SIZE = 512;
+import React, { useEffect, useState } from "react";
+import type { ChatState } from "../store/useChatStore";
+import idleImage from "../assets/avater/main.png";
+import talkFrame1 from "../assets/avater/talk/main.png";
+import talkFrame2 from "../assets/avater/talk/4ani2.png";
+import talkFrame3 from "../assets/avater/talk/4ani3.png";
 
 type Props = {
-  state: CharacterState;
+  state: ChatState;
 };
 
+const TALK_FRAMES = [talkFrame1, talkFrame2, talkFrame3];
+const TALK_INTERVAL_MS = 160; // ~6fps for lip sync
+
 export default function CharacterCanvas({ state }: Props) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const imageRef = useRef<HTMLImageElement | null>(null);
+  const [frameIndex, setFrameIndex] = useState(0);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.imageSmoothingEnabled = false;
+    if (state !== "speaking") {
+      setFrameIndex(0);
+      return;
+    }
 
-    const image = new Image();
-    image.src = spriteSheet;
-    image.onload = () => {
-      imageRef.current = image;
-      setImageLoaded(true);
-    };
-  }, []);
+    const timer = window.setInterval(() => {
+      setFrameIndex((prev) => (prev + 1) % TALK_FRAMES.length);
+    }, TALK_INTERVAL_MS);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !imageLoaded || !imageRef.current) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    return () => window.clearInterval(timer);
+  }, [state]);
 
-    const sheet = imageRef.current;
-    let frameIndex = 0;
-    let rafId = 0;
-    let last = 0;
+  const currentFrame = state === "speaking" ? TALK_FRAMES[frameIndex] : idleImage;
 
-    const draw = (timestamp: number) => {
-      const anim = animations[state] ?? animations.idle;
-      const frameDuration = 1000 / anim.fps;
-
-      if (timestamp - last > frameDuration) {
-        frameIndex = anim.loop ? (frameIndex + 1) % anim.frames : Math.min(anim.frames - 1, frameIndex + 1);
-        last = timestamp;
-      }
-
-      const sx = frameIndex * FRAME_SIZE;
-      const sy = anim.row * FRAME_SIZE;
-
-      ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
-      ctx.drawImage(sheet, sx, sy, FRAME_SIZE, FRAME_SIZE, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
-
-      rafId = requestAnimationFrame(draw);
-    };
-
-    rafId = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(rafId);
-  }, [state, imageLoaded]);
-
-  return (
-    <canvas
-      ref={canvasRef}
-      width={CANVAS_SIZE}
-      height={CANVAS_SIZE}
-      className="character-canvas"
-      style={{ imageRendering: "pixelated" }}
-    />
-  );
+  return <img src={currentFrame} alt="character" className="character-canvas" draggable={false} />;
 }
