@@ -19,6 +19,9 @@ export type AppConfig = {
     alwaysOnTop: boolean;
     spriteSheetPath: string;
     animationSpeedScale: number;
+    characterPaneWidth: number;
+    screenFilter: string;
+    avatarFilter: string;
   };
 };
 
@@ -46,6 +49,9 @@ const defaultConfig: AppConfig = {
     alwaysOnTop: false,
     spriteSheetPath: "assets/pixel-sprite.png",
     animationSpeedScale: 1,
+    characterPaneWidth: 0.44,
+    screenFilter: "brightness(0.55) contrast(1.05)",
+    avatarFilter: "brightness(0.9) contrast(1.1) sepia(0.9) hue-rotate(90deg) saturate(3)",
   },
 };
 
@@ -72,7 +78,13 @@ export function loadConfig(): AppConfig {
   try {
     const raw = fs.readFileSync(configPath, "utf8");
     const parsed = JSON.parse(raw) as AppConfig;
-    return { ...defaultConfig, ...parsed };
+    return {
+      ...defaultConfig,
+      ...parsed,
+      llm: { ...defaultConfig.llm, ...parsed.llm },
+      mcp: { ...defaultConfig.mcp, ...parsed.mcp },
+      ui: { ...defaultConfig.ui, ...parsed.ui },
+    };
   } catch (err) {
     console.error("Failed to read config, using defaults", err);
     return defaultConfig;

@@ -1,5 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
-import HeaderBar from "./components/HeaderBar";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import CharacterCanvas from "./components/CharacterCanvas";
 import ChatView from "./components/ChatView";
 import SettingsDialog from "./components/SettingsDialog";
@@ -21,21 +20,24 @@ type AppConfig = {
     alwaysOnTop: boolean;
     spriteSheetPath: string;
     animationSpeedScale: number;
+    characterPaneWidth: number;
+    screenFilter: string;
+    avatarFilter: string;
   };
 };
 
-function stateLabel(state: ChatState) {
+function formatStatus(state: ChatState) {
   switch (state) {
     case "thinking":
-      return "考え中…";
+      return "考え中";
     case "speaking":
-      return "話し中…";
+      return "話し中";
     case "listening":
-      return "待機しています";
+      return "待機";
     case "error":
-      return "エラーが発生しました";
+      return "エラー";
     default:
-      return "ゆったり待機中";
+      return "待機";
   }
 }
 
@@ -56,10 +58,30 @@ export default function App() {
   const [input, setInput] = useState("");
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [paneWidth, setPaneWidth] = useState(0.44);
+  const paneWidthRef = useRef(paneWidth);
+  const shellRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    paneWidthRef.current = paneWidth;
+  }, [paneWidth]);
+
+  const cssVars = useMemo(
+    () =>
+      ({
+        "--screen-filter": config?.ui.screenFilter,
+        "--avatar-filter": config?.ui.avatarFilter,
+        "--character-column": `${(paneWidth * 100).toFixed(2)}%`,
+      } as React.CSSProperties),
+    [config, paneWidth]
+  );
 
   useEffect(() => {
     if (!window.api) return;
-    window.api.getSettings().then((cfg) => setConfig(cfg));
+    window.api.getSettings().then((cfg) => {
+      setConfig(cfg);
+      setPaneWidth(cfg?.ui?.characterPaneWidth ?? 0.44);
+    });
     window.api.getMcpStatus?.().then((status) => setMcpStatuses(status));
   }, [setMcpStatuses]);
 
@@ -92,6 +114,38 @@ export default function App() {
   );
   const totalServers = mcpStatuses.length;
 
+  const clampWidth = (value: number) => Math.min(0.9, Math.max(0.05, value));
+
+  const startResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    const handleMove = (event: MouseEvent) => {
+      const bounds = shellRef.current?.getBoundingClientRect();
+      if (!bounds) return;
+      const ratio = clampWidth((event.clientX - bounds.left) / bounds.width);
+      paneWidthRef.current = ratio;
+      setPaneWidth(ratio);
+    };
+
+    const handleUp = () => {
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+      setConfig((prev) => {
+        if (!prev) return prev;
+        const next = { ...prev, ui: { ...prev.ui, characterPaneWidth: paneWidthRef.current } };
+        window.api?.saveSettings?.(next);
+        return next;
+      });
+    };
+
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+  };
+
   const handleSend = async () => {
     await sendMessage(input);
     setInput("");
@@ -101,6 +155,7 @@ export default function App() {
     if (!window.api) return;
     const saved = await window.api.saveSettings(next);
     setConfig(saved);
+    setPaneWidth(saved.ui.characterPaneWidth ?? paneWidth);
     setSettingsOpen(false);
   };
 
@@ -112,27 +167,27 @@ export default function App() {
   };
 
   return (
-    <div className="app-shell">
-      <HeaderBar
-        modelName={currentModel}
-        mcpConnected={connectedCount > 0}
-        onOpenSettings={() => setSettingsOpen(true)}
-      />
-
+    <div className="app-shell" style={cssVars} ref={shellRef}>
       <div className="character-area">
         <div className="canvas-frame">
           <CharacterCanvas state={status} />
         </div>
-        <div className="character-state">{stateLabel(status)}</div>
+        <div className="character-meta">
+          <div className="meta-chip">MCP接続: {connectedCount}/{totalServers || 0}</div>
+          <div className="meta-chip">ステータス: {formatStatus(status)}</div>
+        </div>
       </div>
+
+      <div className="column-resizer" onMouseDown={startResize} title="ドラッグで幅を変更" />
 
       <div className="chat-area">
+        <div className="chat-top-bar">
+          <div className="model-tag-inline">{currentModel}</div>
+          <button className="button-icon" onClick={() => setSettingsOpen(true)} title="設定">
+            ⚙
+          </button>
+        </div>
         <ChatView messages={messages} />
-      </div>
-
-      <div className="toolbar">
-        <div className="chip">MCP接続: {connectedCount}/{totalServers || 0}</div>
-        <div className="chip">システムプロンプト: {config?.llm.systemPrompt ?? "ロード中"}</div>
       </div>
 
       <div className="input-area">
@@ -154,7 +209,12 @@ export default function App() {
       </div>
 
       {settingsOpen && config && (
-        <SettingsDialog config={config} onSave={handleSaveSettings} onClose={() => setSettingsOpen(false)} />
+        <SettingsDialog
+          config={config}
+          onSave={handleSaveSettings}
+          onClose={() => setSettingsOpen(false)}
+          connectionInfo={{ connectedCount, totalServers }}
+        />
       )}
     </div>
   );

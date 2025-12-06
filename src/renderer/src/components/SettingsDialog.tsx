@@ -4,6 +4,7 @@ export type SettingsDialogProps = {
   config: AppConfig;
   onSave: (config: AppConfig) => void;
   onClose: () => void;
+  connectionInfo: { connectedCount: number; totalServers: number };
 };
 
 type AppConfig = {
@@ -22,10 +23,13 @@ type AppConfig = {
     alwaysOnTop: boolean;
     spriteSheetPath: string;
     animationSpeedScale: number;
+    characterPaneWidth: number;
+    screenFilter: string;
+    avatarFilter: string;
   };
 };
 
-export default function SettingsDialog({ config, onSave, onClose }: SettingsDialogProps) {
+export default function SettingsDialog({ config, onSave, onClose, connectionInfo }: SettingsDialogProps) {
   const [local, setLocal] = useState<AppConfig>(config);
   const [oauthLoading, setOauthLoading] = useState(false);
   const [oauthError, setOauthError] = useState<string | null>(null);
@@ -64,6 +68,10 @@ export default function SettingsDialog({ config, onSave, onClose }: SettingsDial
     <div className="settings-overlay">
       <div className="settings-card">
         <h2>設定</h2>
+        <div className="settings-info">
+          <div>• MCP接続: {connectionInfo.connectedCount}/{connectionInfo.totalServers || 0}</div>
+          <div>• システムプロンプト: {local.llm.systemPrompt || "未設定"}</div>
+        </div>
 
         <label>
           デフォルトモデル
@@ -113,6 +121,24 @@ export default function SettingsDialog({ config, onSave, onClose }: SettingsDial
             <option value="dark">ダーク</option>
             <option value="light">ライト</option>
           </select>
+        </label>
+        <label>
+          画面フィルター（CSS filter 文字列）
+          <input
+            type="text"
+            value={local.ui.screenFilter}
+            placeholder="brightness(0.55) contrast(1.05)"
+            onChange={(e) => setLocal({ ...local, ui: { ...local.ui, screenFilter: e.target.value } })}
+          />
+        </label>
+        <label>
+          アバターフィルター（黒→緑など色味調整）
+          <input
+            type="text"
+            value={local.ui.avatarFilter}
+            placeholder="brightness(0.9) contrast(1.1) sepia(0.9) hue-rotate(90deg) saturate(3)"
+            onChange={(e) => setLocal({ ...local, ui: { ...local.ui, avatarFilter: e.target.value } })}
+          />
         </label>
 
         <label>
