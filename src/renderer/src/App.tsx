@@ -24,6 +24,7 @@ type AppConfig = {
     screenFilter: string;
     avatarFilter: string;
     fontScale: number;
+    showCodecLines: boolean;
   };
 };
 
@@ -172,7 +173,7 @@ export default function App() {
     <div className="app-shell" style={cssVars} ref={shellRef}>
       <div className="character-area">
         <div className="canvas-frame">
-          <CharacterCanvas state={status} />
+          <CharacterCanvas state={status} enableCodecLines={config?.ui.showCodecLines !== false} />
         </div>
         <div className="character-meta">
           <div className="meta-chip">MCP接続: {connectedCount}/{totalServers || 0}</div>

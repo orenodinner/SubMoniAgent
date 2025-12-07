@@ -27,6 +27,7 @@ type AppConfig = {
     screenFilter: string;
     avatarFilter: string;
     fontScale: number;
+    showCodecLines: boolean;
   };
 };
 
@@ -160,11 +161,20 @@ export default function SettingsDialog({ config, onSave, onClose, connectionInfo
       </label>
 
       <label>
+        オシロスコープラインを表示
+        <input
+          type="checkbox"
+          checked={local.ui.showCodecLines ?? true}
+          onChange={(e) => setLocal({ ...local, ui: { ...local.ui, showCodecLines: e.target.checked } })}
+        />
+      </label>
+
+      <label>
         常に手前に表示
         <input
           type="checkbox"
-            checked={local.ui.alwaysOnTop}
-            onChange={(e) => setLocal({ ...local, ui: { ...local.ui, alwaysOnTop: e.target.checked } })}
+          checked={local.ui.alwaysOnTop}
+          onChange={(e) => setLocal({ ...local, ui: { ...local.ui, alwaysOnTop: e.target.checked } })}
           />
         </label>
 

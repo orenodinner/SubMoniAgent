@@ -23,6 +23,7 @@ export type AppConfig = {
     screenFilter: string;
     avatarFilter: string;
     fontScale: number;
+    showCodecLines: boolean;
   };
 };
 
@@ -54,6 +55,7 @@ const defaultConfig: AppConfig = {
     screenFilter: "brightness(0.55) contrast(1.05)",
     avatarFilter: "brightness(0.9) contrast(1.1) sepia(0.9) hue-rotate(90deg) saturate(3)",
     fontScale: 1,
+    showCodecLines: true,
   },
 };
 

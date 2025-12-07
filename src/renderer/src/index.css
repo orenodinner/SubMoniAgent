@@ -175,6 +175,17 @@ body {
   animation: codec-flicker 1.4s steps(2, end) infinite;
 }
 
+.character-layer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.character-layer > * {
+  position: absolute;
+  inset: 0;
+}
+
 .chat-area {
   grid-area: chat;
   display: flex;
@@ -446,6 +457,49 @@ body {
   transition: filter 120ms ease, transform 160ms ease;
 }
 
+.codec-lines {
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 22%,
+    rgba(70, 255, 200, 0.8) 23%,
+    rgba(70, 255, 200, 0.05) 25%,
+    transparent 40%
+  );
+  pointer-events: none;
+  mix-blend-mode: screen;
+  opacity: 0.5;
+  animation: codec-sweep 6s linear infinite;
+  filter: blur(0.2px);
+}
+
+.codec-lines.mid {
+  animation-duration: 7s;
+  animation-delay: -0.6s;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 18%,
+    rgba(70, 255, 200, 0.8) 20%,
+    rgba(70, 255, 200, 0.05) 23%,
+    transparent 34%
+  );
+}
+
+.codec-lines.slow {
+  opacity: 0.35;
+  animation-duration: 9s;
+  animation-delay: -1.3s;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 20%,
+    rgba(70, 255, 200, 0.85) 22%,
+    rgba(70, 255, 200, 0.08) 25%,
+    transparent 38%
+  );
+}
+
 .character-meta {
   display: flex;
   gap: 8px;
@@ -561,6 +615,21 @@ body {
   }
   100% {
     transform: translateY(0) scaleX(1.005);
+  }
+}
+
+@keyframes codec-sweep {
+  0% {
+    transform: translateY(-100%);
+  }
+  40% {
+    transform: translateY(110%);
+  }
+  45% {
+    transform: translateY(-30%);
+  }
+  100% {
+    transform: translateY(120%);
   }
 }
 ::-webkit-scrollbar {
