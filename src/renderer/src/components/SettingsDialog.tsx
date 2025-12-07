@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import type { AppConfig, LlmModel } from "../../../shared/types";
+import { logger } from "../utils/logger";
 
 export type SettingsDialogProps = {
   config: AppConfig;
@@ -21,6 +22,7 @@ export default function SettingsDialog({
   const [local, setLocal] = useState<AppConfig>(config);
   const [oauthLoading, setOauthLoading] = useState(false);
   const [oauthError, setOauthError] = useState<string | null>(null);
+  const [logsError, setLogsError] = useState<string | null>(null);
   const [modelQuery, setModelQuery] = useState("");
 
   useEffect(() => setLocal(config), [config]);
@@ -50,6 +52,19 @@ export default function SettingsDialog({
       setOauthError(err instanceof Error ? err.message : "予期しないエラーが発生しました");
     } finally {
       setOauthLoading(false);
+    }
+  };
+
+  const handleOpenLogsFolder = async () => {
+    if (!window.api?.openLogsFolder) return;
+    try {
+      logger.info("Opening logs folder from settings dialog");
+      await window.api.openLogsFolder();
+      setLogsError(null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "ログフォルダを開けませんでした";
+      setLogsError(message);
+      logger.error("Failed to open logs folder", err);
     }
   };
 
@@ -197,6 +212,9 @@ export default function SettingsDialog({
         </label>
 
         <div className="settings-actions">
+          <button className="small-btn" onClick={handleOpenLogsFolder}>
+            ログフォルダを開く
+          </button>
           <button className="small-btn" onClick={onClose}>
             キャンセル
           </button>
@@ -204,6 +222,7 @@ export default function SettingsDialog({
             保存
           </button>
         </div>
+        {logsError && <div className="oauth-error">{logsError}</div>}
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { nanoid } from "nanoid";
 import type { LlmModel, McpStatus } from "../../../shared/types";
+import { logger } from "../utils/logger";
 
 export type ChatState = "idle" | "listening" | "thinking" | "speaking" | "error";
 
@@ -63,6 +64,7 @@ export const useChatStore = create<Store>((set, get) => ({
     set((state) => {
       const now = new Date().toISOString();
       let updated = false;
+      logger.error("Chat error handled", { assistantId, code, message });
       const messages = state.messages.map((msg) => {
         if (assistantId && msg.id === assistantId) {
           updated = true;
@@ -102,6 +104,7 @@ export const useChatStore = create<Store>((set, get) => ({
       streaming: true,
     };
 
+    logger.info("Sending chat message", { assistantId, model: get().currentModel, sessionId: get().sessionId });
     set((state) => ({
       messages: [...state.messages, userMessage, assistantMessage],
       status: "thinking",
@@ -115,22 +118,28 @@ export const useChatStore = create<Store>((set, get) => ({
     });
 
     if (result?.error) {
+      logger.error("sendMessage returned error", { assistantId, message: result.error });
       get().handleError({ assistantId, message: result.error });
     }
   },
   abortMessage: async (assistantId: string) => {
     if (!window.api?.abortMessage) return;
+    logger.info("Abort requested", { assistantId });
     await window.api.abortMessage(assistantId);
   },
   setAvailableModels: (models: LlmModel[]) => set({ availableModels: models }),
   loadModels: async () => {
     if (!window.api?.listModels) return;
+    logger.info("Loading model list from main process");
     const result = await window.api.listModels();
     const models = result?.models ?? [];
     set({
       availableModels: models,
       modelsError: result?.error,
     });
+    if (result?.error) {
+      logger.error("Failed to load models", { error: result.error });
+    }
 
     if (models.length > 0 && !models.some((m) => m.id === get().currentModel)) {
       set({ currentModel: models[0].id });

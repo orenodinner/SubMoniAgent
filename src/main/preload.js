@@ -1,4 +1,9 @@
-﻿const { contextBridge, ipcRenderer } = require("electron");
+const { contextBridge, ipcRenderer } = require("electron");
+const rendererLog = require("electron-log/renderer");
+
+rendererLog.errorHandler.startCatching({ showDialog: false });
+rendererLog.transports.console.level = "debug";
+rendererLog.transports.remote.level = "info";
 
 contextBridge.exposeInMainWorld("api", {
   sendMessage: (payload) => ipcRenderer.invoke("chat:sendMessage", payload),
@@ -7,6 +12,7 @@ contextBridge.exposeInMainWorld("api", {
   saveSettings: (config) => ipcRenderer.invoke("settings:save", config),
   listMcpServers: () => ipcRenderer.invoke("mcp:listServers"),
   getMcpStatus: () => ipcRenderer.invoke("mcp:getStatus"),
+  openLogsFolder: () => ipcRenderer.invoke("app:openLogsFolder"),
   startOpenRouterOAuth: () => ipcRenderer.invoke("oauth:openrouter"),
   listModels: () => ipcRenderer.invoke("models:list"),
   onAssistantChunk: (callback) => {
@@ -34,4 +40,11 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.on("mcp:statusChanged", listener);
     return () => ipcRenderer.removeListener("mcp:statusChanged", listener);
   },
+});
+
+contextBridge.exposeInMainWorld("logger", {
+  info: (...args) => rendererLog.info(...args),
+  warn: (...args) => rendererLog.warn(...args),
+  error: (...args) => rendererLog.error(...args),
+  debug: (...args) => rendererLog.debug(...args),
 });

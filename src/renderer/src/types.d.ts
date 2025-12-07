@@ -18,6 +18,7 @@ declare global {
       listMcpServers: () => Promise<McpServer[]>;
 
       getMcpStatus: () => Promise<McpStatus[]>;
+      openLogsFolder: () => Promise<{ path: string }>;
 
       listModels: () => Promise<{ models: LlmModel[]; error?: string }>;
 
@@ -33,6 +34,12 @@ declare global {
       onChatError: (callback: (error: { assistantId?: string; code?: string; message: string }) => void) => () => void;
 
       onMcpStatusChanged: (callback: (status: McpStatus[]) => void) => () => void;
+    };
+    logger?: {
+      info: (...args: unknown[]) => void;
+      warn: (...args: unknown[]) => void;
+      error: (...args: unknown[]) => void;
+      debug: (...args: unknown[]) => void;
     };
   }
 }

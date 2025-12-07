@@ -1,10 +1,13 @@
-﻿import { app, BrowserWindow, ipcMain } from "electron";
-import path from "path";
-import { session, shell } from "electron";
+import { app, BrowserWindow, ipcMain, session, shell } from "electron";
 import crypto from "crypto";
+import debug from "electron-debug";
+import path from "path";
+import unhandled from "electron-unhandled";
+import { openNewGitHubIssue, debugInfo } from "electron-util";
 import { loadConfig, saveConfig } from "./configStore";
 import { AppConfig, LlmModel } from "../shared/types";
 import { normalizeLlmError, streamResponse } from "./llmService";
+import log from "./logger";
 import type { ChatMessage } from "./llm/types";
 import { mcpClient } from "./mcpClient";
 import { ChatMessageSchema } from "../shared/schemas";
@@ -13,6 +16,7 @@ let mainWindow: BrowserWindow | null = null;
 let config: AppConfig;
 const abortControllers = new Map<string, AbortController>();
 const OPENROUTER_API_BASE = "https://openrouter.ai/api/v1";
+const isDev = !app.isPackaged;
 
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
 const OPENROUTER_AUTH_URL = "https://openrouter.ai/auth";
@@ -27,7 +31,23 @@ const CONTENT_SECURITY_POLICY = `
   connect-src 'self' https://openrouter.ai https://api.openai.com wss://* ws://*;
 `;
 
+if (isDev) {
+  debug({ showDevTools: false });
+}
+
+unhandled({
+  logger: (error) => log.error("Unhandled error", error),
+  showDialog: true,
+  reportButton: (error) =>
+    openNewGitHubIssue({
+      user: "pixelagent",
+      repo: "pixelagent",
+      body: `\`\`\`\n${error.stack ?? error}\n\`\`\`\n\n---\n${debugInfo()}`,
+    }),
+});
+
 function createWindow() {
+  log.info("Creating main window");
   mainWindow = new BrowserWindow({
     width: 1920,
     height: 480,
@@ -42,9 +62,11 @@ function createWindow() {
   });
 
   if (VITE_DEV_SERVER_URL) {
+    log.info(`Loading renderer from dev server at ${VITE_DEV_SERVER_URL}`);
     mainWindow.loadURL(VITE_DEV_SERVER_URL);
   } else {
     const indexPath = path.join(__dirname, "../renderer/index.html");
+    log.info(`Loading renderer from file://${indexPath}`);
     mainWindow.loadFile(indexPath);
   }
 
@@ -68,6 +90,7 @@ function createWindow() {
   mainWindow.webContents.on("did-finish-load", () => {
     mainWindow?.webContents.send("mcp:statusChanged", mcpClient.getStatuses());
     mainWindow?.webContents.send("chat:stateUpdate", "idle");
+    log.info("Renderer loaded");
   });
 }
 
@@ -171,10 +194,12 @@ async function exchangeCodeForKey(code: string, codeVerifier: string) {
 }
 
 async function runOpenRouterOAuth() {
+  log.info("Starting OpenRouter OAuth flow");
   const codeVerifier = createCodeVerifier();
   const codeChallenge = createCodeChallenge(codeVerifier);
   const code = await openOpenRouterAuthWindow(codeChallenge);
   const key = await exchangeCodeForKey(code, codeVerifier);
+  log.info("OpenRouter OAuth flow completed");
   return { key, provider: "openrouter" as const };
 }
 
@@ -191,6 +216,7 @@ async function fetchOpenRouterModels(apiKey: string): Promise<{ models: LlmModel
   }
 
   try {
+    log.info("Fetching OpenRouter models list");
     const response = await fetch(`${OPENROUTER_API_BASE}/models`, {
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -220,12 +246,14 @@ async function fetchOpenRouterModels(apiKey: string): Promise<{ models: LlmModel
 
     return { models };
   } catch (err) {
+    log.error("Failed to fetch OpenRouter models", err);
     const message = err instanceof Error ? err.message : "モデルの取得に失敗しました。";
     return { models: [], error: message };
   }
 }
 
 app.whenReady().then(() => {
+  log.info("App ready, configuring session headers");
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     const isDevServer = VITE_DEV_SERVER_URL && details.url.startsWith(VITE_DEV_SERVER_URL);
     const isLocalFile = details.url.startsWith("file://");
@@ -244,6 +272,7 @@ app.whenReady().then(() => {
   });
 
   config = loadConfig();
+  log.info("Config loaded", { provider: config.llm.provider, defaultModel: config.llm.defaultModel });
   createWindow();
 
   mcpClient.loadServers(config.mcp.servers);
@@ -256,11 +285,19 @@ app.whenReady().then(() => {
     saveConfig(config);
     mcpClient.loadServers(config.mcp.servers);
     mcpClient.connectEnabled();
+    log.info("Settings saved", { provider: config.llm.provider, defaultModel: config.llm.defaultModel });
     return config;
   });
 
   ipcMain.handle("mcp:listServers", () => mcpClient.listServers());
   ipcMain.handle("mcp:getStatus", () => mcpClient.getStatuses());
+
+  ipcMain.handle("app:openLogsFolder", () => {
+    const logPath = log.transports.file.getFile().path;
+    log.info("Opening logs folder");
+    shell.showItemInFolder(logPath);
+    return { path: logPath };
+  });
 
   ipcMain.handle("models:list", async () => {
     if (config.llm.provider === "openrouter") {
@@ -280,6 +317,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle("oauth:openrouter", async () => {
     try {
+      log.info("Starting OpenRouter OAuth from renderer");
       const { key, provider } = await runOpenRouterOAuth();
       config = {
         ...config,
@@ -290,9 +328,11 @@ app.whenReady().then(() => {
         },
       };
       saveConfig(config);
+      log.info("OpenRouter OAuth succeeded, key stored");
       return { key };
     } catch (err) {
       const message = err instanceof Error ? err.message : "OpenRouter OAuth に失敗しました";
+      log.error("OpenRouter OAuth failed", err);
       return { error: message };
     }
   });
@@ -302,13 +342,14 @@ app.whenReady().then(() => {
     async (_event, payload: unknown) => {
       const parseResult = ChatMessageSchema.safeParse(payload);
       if (!parseResult.success) {
-        console.error("Invalid IPC payload:", parseResult.error);
+        log.error("Invalid IPC payload:", parseResult.error);
         return { error: "Invalid request parameters" };
       }
 
       if (!mainWindow) return { error: "Window not ready" };
 
       const { text, model, assistantId } = parseResult.data;
+      log.info("IPC chat:sendMessage called", { assistantId, model, provider: config?.llm.provider });
       mainWindow.webContents.send("chat:stateUpdate", "thinking");
 
       let full = "";
@@ -316,6 +357,7 @@ app.whenReady().then(() => {
       const apiKey = config?.llm.apiKeyEncrypted;
       if (!apiKey) {
         const message = "APIキーが設定されていません。設定画面で入力してください。";
+        log.warn("API key missing, rejecting chat request", { assistantId });
         mainWindow.webContents.send("chat:error", { assistantId, code: "unauthorized", message });
         mainWindow.webContents.send("chat:stateUpdate", "error");
         return { error: message };
@@ -353,6 +395,7 @@ app.whenReady().then(() => {
       } catch (err) {
         const normalized = normalizeLlmError(err);
         const nextState = normalized.code === "aborted" ? "idle" : "error";
+        log.error("chat:sendMessage failed", { assistantId, code: normalized.code, message: normalized.message });
         mainWindow.webContents.send("chat:error", { assistantId, code: normalized.code, message: normalized.message });
         mainWindow.webContents.send("chat:stateUpdate", nextState);
         return { error: normalized.message };
@@ -367,8 +410,10 @@ app.whenReady().then(() => {
     if (controller) {
       controller.abort();
       abortControllers.delete(assistantId);
+      log.info("chat:abort handled", { assistantId });
       return { aborted: true };
     }
+    log.warn("chat:abort requested but controller not found", { assistantId });
     return { aborted: false, reason: "not-found" };
   });
 
@@ -379,7 +424,9 @@ app.whenReady().then(() => {
   });
 
   app.on("activate", () => {
+    log.info("App activated");
     if (BrowserWindow.getAllWindows().length === 0) {
+      log.info("Recreating main window after activate");
       createWindow();
     }
   });
@@ -387,6 +434,7 @@ app.whenReady().then(() => {
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
+    log.info("Quitting application because all windows are closed");
     app.quit();
   }
 });
