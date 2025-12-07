@@ -49,13 +49,15 @@ describe("OpenAIProvider", () => {
       }
     }
 
-    expect(mockCreate).toHaveBeenCalledWith({
-      model: "gpt-4.1-mini",
-      messages: [{ role: "user", content: "Hi" }],
-      tools: undefined,
-      stream: true,
-      signal: undefined,
-    });
+    expect(mockCreate).toHaveBeenCalledWith(
+      {
+        model: "gpt-4.1-mini",
+        messages: [{ role: "user", content: "Hi" }],
+        tools: undefined,
+        stream: true,
+      },
+      { signal: undefined }
+    );
     expect(chunks.join("")).toBe("Hello!");
   });
 

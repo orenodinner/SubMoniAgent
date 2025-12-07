@@ -69,13 +69,15 @@ export class OpenAIProvider implements LLMProvider {
       throw new Error("OpenAI クライアントが初期化されていません。");
     }
 
-    const stream = await this.client.chat.completions.create({
-      model: request.model,
-      messages: this.toMessages(request.messages),
-      tools: request.tools as ChatCompletionTool[] | undefined,
-      stream: true,
-      signal: request.signal,
-    });
+    const stream = await this.client.chat.completions.create(
+      {
+        model: request.model,
+        messages: this.toMessages(request.messages),
+        tools: request.tools as ChatCompletionTool[] | undefined,
+        stream: true,
+      },
+      { signal: request.signal }
+    );
 
     const pendingToolCalls = new Map<number, { id?: string; name?: string; arguments: string }>();
 

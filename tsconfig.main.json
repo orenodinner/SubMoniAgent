@@ -5,5 +5,6 @@
     "outDir": "dist/main",
     "types": ["node", "electron"]
   },
-  "include": ["src/main/**/*"]
+  "include": ["src/main/**/*"],
+  "exclude": ["src/main/__tests__/**"]
 }

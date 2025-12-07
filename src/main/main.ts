@@ -1,9 +1,7 @@
 import { app, BrowserWindow, ipcMain, session, shell } from "electron";
 import crypto from "crypto";
-import debug from "electron-debug";
 import path from "path";
-import unhandled from "electron-unhandled";
-import { openNewGitHubIssue, debugInfo } from "electron-util";
+import { autoUpdater } from "electron-updater";
 import { loadConfig, saveConfig } from "./configStore";
 import { AppConfig, LlmModel } from "../shared/types";
 import { normalizeLlmError, streamResponse } from "./llmService";
@@ -31,20 +29,42 @@ const CONTENT_SECURITY_POLICY = `
   connect-src 'self' https://openrouter.ai https://api.openai.com wss://* ws://*;
 `;
 
-if (isDev) {
-  debug({ showDevTools: false });
+function setupDevTools() {
+  if (!isDev) return;
+  import("electron-debug")
+    .then(({ default: debug }) => {
+      debug({ showDevTools: false });
+    })
+    .catch((error) => {
+      log.warn("Failed to load electron-debug", error);
+    });
 }
 
-unhandled({
-  logger: (error) => log.error("Unhandled error", error),
-  showDialog: true,
-  reportButton: (error) =>
-    openNewGitHubIssue({
-      user: "pixelagent",
-      repo: "pixelagent",
-      body: `\`\`\`\n${error.stack ?? error}\n\`\`\`\n\n---\n${debugInfo()}`,
-    }),
-});
+async function setupUnhandled() {
+  try {
+    const [{ default: unhandled }, electronUtil, electronUtilMain] = await Promise.all([
+      import("electron-unhandled"),
+      import("electron-util"),
+      import("electron-util/main"),
+    ]);
+
+    unhandled({
+      logger: (error) => log.error("Unhandled error", error),
+      showDialog: true,
+      reportButton: (error) =>
+        electronUtil.openNewGitHubIssue({
+          user: "pixelagent",
+          repo: "pixelagent",
+          body: `\`\`\`\n${error.stack ?? error}\n\`\`\`\n\n---\n${electronUtilMain.debugInfo()}`,
+        }),
+    });
+  } catch (error) {
+    log.error("Failed to initialize unhandled error reporting", error);
+  }
+}
+
+setupDevTools();
+void setupUnhandled();
 
 function createWindow() {
   log.info("Creating main window");
@@ -91,6 +111,30 @@ function createWindow() {
     mainWindow?.webContents.send("mcp:statusChanged", mcpClient.getStatuses());
     mainWindow?.webContents.send("chat:stateUpdate", "idle");
     log.info("Renderer loaded");
+  });
+}
+
+function startAutoUpdate() {
+  autoUpdater.logger = log;
+
+  autoUpdater.on("update-available", () => {
+    log.info("Update available. Downloading in background.");
+  });
+
+  autoUpdater.on("update-not-available", () => {
+    log.info("No updates available");
+  });
+
+  autoUpdater.on("update-downloaded", (info) => {
+    log.info("Update downloaded; ready to install on quit", { version: info?.version });
+  });
+
+  autoUpdater.on("error", (error) => {
+    log.error("Auto updater error", error);
+  });
+
+  autoUpdater.checkForUpdatesAndNotify().catch((error) => {
+    log.error("Failed to check for updates", error);
   });
 }
 
@@ -274,6 +318,12 @@ app.whenReady().then(() => {
   config = loadConfig();
   log.info("Config loaded", { provider: config.llm.provider, defaultModel: config.llm.defaultModel });
   createWindow();
+
+  if (!isDev) {
+    startAutoUpdate();
+  } else {
+    log.info("Skipping auto update in development mode");
+  }
 
   mcpClient.loadServers(config.mcp.servers);
   mcpClient.connectEnabled();

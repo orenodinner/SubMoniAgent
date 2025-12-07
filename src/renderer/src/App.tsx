@@ -5,21 +5,42 @@ import SettingsDialog from "./components/SettingsDialog";
 import { useChatStore, ChatState } from "./store/useChatStore";
 import type { AppConfig, McpStatus } from "../../shared/types";
 
+const fallbackConfig: AppConfig = {
+  version: 1,
+  llm: {
+    provider: "openai",
+    apiKeyEncrypted: "",
+    defaultModel: "gpt-4.1-mini",
+    systemPrompt: "You are PixelAgent, a helpful desktop agent represented by a pixel art character.",
+  },
+  mcp: { servers: [] },
+  ui: {
+    theme: "dark",
+    alwaysOnTop: false,
+    spriteSheetPath: "assets/pixel-sprite.png",
+    animationSpeedScale: 1,
+    characterPaneWidth: 0.44,
+    screenFilter: "brightness(0.55) contrast(1.05)",
+    avatarFilter: "brightness(0.9) contrast(1.1) sepia(0.9) hue-rotate(90deg) saturate(3)",
+    fontScale: 1,
+    showCodecLines: true,
+  },
+};
+
 function formatStatus(state: ChatState) {
   switch (state) {
     case "thinking":
-      return "ËÄÉ„Åà‰∏≠";
+      return "Thinking";
     case "speaking":
-      return "Ë©±„Åó‰∏≠";
+      return "Speaking";
     case "listening":
-      return "ÂæÖÊ©ü";
+      return "Listening";
     case "error":
-      return "„Ç®„É©„Éº";
+      return "Error";
     default:
-      return "ÂæÖÊ©ü";
+      return "Idle";
   }
 }
-
 export default function App() {
   const {
     messages,
@@ -40,6 +61,7 @@ export default function App() {
 
   const [input, setInput] = useState("");
   const [config, setConfig] = useState<AppConfig | null>(null);
+  const [configLoading, setConfigLoading] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [paneWidth, setPaneWidth] = useState(0.44);
   const [modelQuery, setModelQuery] = useState("");
@@ -62,14 +84,27 @@ export default function App() {
   );
 
   useEffect(() => {
-    if (!window.api) return;
-    window.api.getSettings().then((cfg) => {
-      setConfig(cfg);
-      setPaneWidth(cfg?.ui?.characterPaneWidth ?? 0.44);
-      if (cfg?.llm?.defaultModel) {
-        setModel(cfg.llm.defaultModel);
-      }
-    });
+    if (!window.api) {
+      setConfig(fallbackConfig);
+      setConfigLoading(false);
+      return;
+    }
+
+    window.api
+      .getSettings()
+      .then((cfg) => {
+        setConfig(cfg);
+        setPaneWidth(cfg?.ui?.characterPaneWidth ?? 0.44);
+        if (cfg?.llm?.defaultModel) {
+          setModel(cfg.llm.defaultModel);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load settings, using defaults", err);
+        setConfig(fallbackConfig);
+      })
+      .finally(() => setConfigLoading(false));
+
     window.api.getMcpStatus?.().then((status) => setMcpStatuses(status));
     loadModels();
   }, [setMcpStatuses, loadModels, setModel]);
@@ -143,7 +178,11 @@ export default function App() {
   };
 
   const handleSaveSettings = async (next: AppConfig) => {
-    if (!window.api) return;
+    if (!window.api) {
+      setConfig(next);
+      setSettingsOpen(false);
+      return;
+    }
     const saved = await window.api.saveSettings(next);
     setConfig(saved);
     setPaneWidth(saved.ui.characterPaneWidth ?? paneWidth);
@@ -186,18 +225,18 @@ export default function App() {
           <CharacterCanvas state={status} enableCodecLines={config?.ui.showCodecLines !== false} />
         </div>
         <div className="character-meta">
-          <div className="meta-chip">MCPÊé•Á∂ö: {connectedCount}/{totalServers || 0}</div>
-          <div className="meta-chip">„Çπ„ÉÜ„Éº„Çø„Çπ: {formatStatus(status)}</div>
+          <div className="meta-chip">MCPÊé•Á∂ÅE {connectedCount}/{totalServers || 0}</div>
+          <div className="meta-chip">„Çπ„ÉÅEÅE„Çø„Çπ: {formatStatus(status)}</div>
         </div>
       </div>
 
-      <div className="column-resizer" onMouseDown={startResize} title="„Éâ„É©„ÉÉ„Ç∞„ÅßÂπÖ„ÇíÂ§âÊõ¥" />
+      <div className="column-resizer" onMouseDown={startResize} title="„Éâ„É©„ÉÅEÇ∞„ÅßÂπÅEÇíÂ§âÊõ¥" />
 
       <div className="chat-area">
         <div className="chat-top-bar">
           <div className="model-tag-inline">{currentModel}</div>
-          <button className="button-icon" onClick={() => setSettingsOpen(true)} title="Ë®≠ÂÆö">
-            ‚öô
+          <button className="button-icon" onClick={() => setSettingsOpen(true)} title="ê›íË">
+            ê›íË
           </button>
         </div>
         <ChatView messages={messages} />
@@ -208,7 +247,7 @@ export default function App() {
           <input
             type="text"
             className="model-search"
-            placeholder="„É¢„Éá„É´„ÇíÊ§úÁ¥¢"
+            placeholder="„É¢„ÉÅEÉ´„ÇíÊ§úÁ¥¢"
             value={modelQuery}
             onChange={(e) => setModelQuery(e.target.value)}
           />
@@ -222,26 +261,50 @@ export default function App() {
         </div>
         <textarea
           className="textbox"
-          placeholder="Ë≥™Âïè„ÇíÂÖ•Âäõ‚Ä¶ (Enter„ÅßÊîπË°å / Ctrl+Enter„ÅßÈÄÅ‰ø°)"
+          placeholder="Type a message... (Enter = newline / Ctrl+Enter = send)"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKeyDown}
         />
         <button className="send-btn" onClick={handleSend}>
-          <span>ÈÄÅ‰ø°</span> <span>‚Üí</span>
+          <span>Send</span> <span>Ctrl+Enter</span>
         </button>
       </div>
 
-      {settingsOpen && config && (
-        <SettingsDialog
-          config={config}
-          onSave={handleSaveSettings}
-          onClose={() => setSettingsOpen(false)}
-          connectionInfo={{ connectedCount, totalServers }}
-          models={modelOptions}
-          modelsError={modelsError}
-        />
+      {settingsOpen && (
+        config ? (
+          <SettingsDialog
+            config={config}
+            onSave={handleSaveSettings}
+            onClose={() => setSettingsOpen(false)}
+            connectionInfo={{ connectedCount, totalServers }}
+            models={modelOptions}
+            modelsError={modelsError}
+          />
+        ) : (
+          <div className="settings-overlay">
+            <div className="settings-card">
+              <h2>ê›íËÇì«Ç›çûÇﬂÇ‹ÇπÇÒÇ≈ÇµÇΩ</h2>
+              <p>ê›íËÇÃì«Ç›çûÇ›Ç…é∏îsÇµÇ‹ÇµÇΩÅBÇ‡Ç§àÍìxÇ®ééÇµÇ≠ÇæÇ≥Ç¢ÅB</p>
+              {configLoading && <p>ì«Ç›çûÇ›íÜÇ≈Ç∑Åc</p>}
+              <div className="settings-actions">
+                <button className="small-btn" onClick={() => setSettingsOpen(false)}>
+                  ï¬Ç∂ÇÈ
+                </button>
+              </div>
+            </div>
+          </div>
+        )
       )}
     </div>
   );
 }
+
+
+
+
+
+
+
+
+

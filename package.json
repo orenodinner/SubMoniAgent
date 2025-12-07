@@ -2,15 +2,23 @@
   "name": "pixelagent",
   "version": "0.1.0",
   "description": "PixelAgent desktop AI agent MVP",
-  "main": "dist/main.js",
+  "main": "dist/main/main.js",
   "scripts": {
     "dev": "concurrently -k \"npm:dev:renderer\" \"npm:dev:main\"",
     "dev:renderer": "vite --config vite.renderer.config.ts",
     "dev:main": "cross-env VITE_DEV_SERVER_URL=http://localhost:5173 TS_NODE_PROJECT=tsconfig.main.json node ./scripts/start-electron.js",
+    "build": "npm run build:renderer && npm run build:main",
     "build:renderer": "vite build --config vite.renderer.config.ts",
+    "build:main": "tsc -p tsconfig.main.json",
+    "dist": "npm run build && electron-builder",
+    "postinstall": "electron-builder install-app-deps",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
     "test:e2e": "playwright test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pixelagent/pixelagent.git"
   },
   "dependencies": {
     "classnames": "2.5.1",
@@ -18,6 +26,7 @@
     "electron-debug": "^4.1.0",
     "electron-log": "^5.4.3",
     "electron-unhandled": "^5.0.0",
+    "electron-updater": "^6.6.2",
     "electron-util": "^1.0.0",
     "nanoid": "^5.1.6",
     "openai": "^4.104.0",
@@ -37,11 +46,45 @@
     "@vitejs/plugin-react": "4.3.4",
     "concurrently": "8.2.2",
     "cross-env": "7.0.3",
+    "electron-builder": "^26.0.12",
     "jsdom": "25.0.1",
     "playwright": "1.50.1",
     "ts-node": "10.9.2",
     "typescript": "5.6.3",
     "vite": "5.4.10",
     "vitest": "2.1.5"
+  },
+  "build": {
+    "appId": "com.pixelagent.app",
+    "productName": "PixelAgent",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "pixelagent",
+        "repo": "pixelagent"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "build/icon.icns",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "build/icon.png",
+      "category": "Utility"
+    }
   }
 }
