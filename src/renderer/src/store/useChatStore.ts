@@ -1,5 +1,6 @@
 ﻿import { create } from "zustand";
 import { nanoid } from "nanoid";
+import type { McpStatus } from "../../../shared/types";
 
 export type ChatState = "idle" | "listening" | "thinking" | "speaking" | "error";
 
@@ -10,12 +11,6 @@ export type Message = {
   timestamp: string;
   model?: string;
   streaming?: boolean;
-};
-
-export type McpStatus = {
-  id: string;
-  name: string;
-  connected: boolean;
 };
 
 type Store = {

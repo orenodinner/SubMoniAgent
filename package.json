@@ -7,7 +7,10 @@
     "dev": "concurrently -k \"npm:dev:renderer\" \"npm:dev:main\"",
     "dev:renderer": "vite --config vite.renderer.config.ts",
     "dev:main": "cross-env VITE_DEV_SERVER_URL=http://localhost:5173 TS_NODE_PROJECT=tsconfig.main.json node ./scripts/start-electron.js",
-    "build:renderer": "vite build --config vite.renderer.config.ts"
+    "build:renderer": "vite build --config vite.renderer.config.ts",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "classnames": "2.5.1",
@@ -24,8 +27,15 @@
     "@vitejs/plugin-react": "4.3.4",
     "concurrently": "8.2.2",
     "cross-env": "7.0.3",
+    "jsdom": "25.0.1",
     "ts-node": "10.9.2",
     "typescript": "5.6.3",
-    "vite": "5.4.10"
+    "vite": "5.4.10",
+    "vitest": "2.1.5",
+    "@testing-library/react": "16.1.0",
+    "@testing-library/user-event": "14.5.2",
+    "@testing-library/jest-dom": "6.6.3",
+    "@playwright/test": "1.50.1",
+    "playwright": "1.50.1"
   }
 }

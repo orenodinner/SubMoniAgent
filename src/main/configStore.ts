@@ -1,31 +1,7 @@
 ﻿import fs from "fs";
 import path from "path";
-import { app } from "electron";
-import { McpServer } from "./mcpClient";
-
-export type AppConfig = {
-  version: number;
-  llm: {
-    provider: string;
-    apiKeyEncrypted: string;
-    defaultModel: string;
-    systemPrompt: string;
-  };
-  mcp: {
-    servers: McpServer[];
-  };
-  ui: {
-    theme: "light" | "dark";
-    alwaysOnTop: boolean;
-    spriteSheetPath: string;
-    animationSpeedScale: number;
-    characterPaneWidth: number;
-    screenFilter: string;
-    avatarFilter: string;
-    fontScale: number;
-    showCodecLines: boolean;
-  };
-};
+import { app, safeStorage } from "electron";
+import { AppConfig } from "../shared/types";
 
 const defaultConfig: AppConfig = {
   version: 1,
@@ -67,6 +43,43 @@ function getConfigPath() {
   return path.join(getConfigDir(), "config.json");
 }
 
+/**
+ * 文字列を暗号化するヘルパー関数
+ * safeStorageが利用可能な場合は暗号化してHex文字列を返す
+ * 利用不可の場合は平文を返す
+ */
+function encryptField(text: string): string {
+  if (!text) return "";
+  if (safeStorage.isEncryptionAvailable()) {
+    try {
+      return safeStorage.encryptString(text).toString("hex");
+    } catch (err) {
+      console.error("Encryption failed:", err);
+      return text;
+    }
+  }
+  return text;
+}
+
+/**
+ * 文字列を復号するヘルパー関数
+ * Hex文字列から復号を試みる。失敗した場合やsafeStorageがない場合はそのまま返す
+ */
+function decryptField(text: string): string {
+  if (!text) return "";
+  if (safeStorage.isEncryptionAvailable()) {
+    try {
+      // Hex文字列とみなしてBuffer化
+      const buffer = Buffer.from(text, "hex");
+      return safeStorage.decryptString(buffer);
+    } catch {
+      // 復号失敗時（平文データの可能性など）はそのまま返す
+      return text;
+    }
+  }
+  return text;
+}
+
 export function loadConfig(): AppConfig {
   const dir = getConfigDir();
   if (!fs.existsSync(dir)) {
@@ -75,6 +88,7 @@ export function loadConfig(): AppConfig {
 
   const configPath = getConfigPath();
   if (!fs.existsSync(configPath)) {
+    // 新規作成時はデフォルトを保存（暗号化は不要、空文字なので）
     fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2), "utf8");
     return defaultConfig;
   }
@@ -82,13 +96,30 @@ export function loadConfig(): AppConfig {
   try {
     const raw = fs.readFileSync(configPath, "utf8");
     const parsed = JSON.parse(raw) as AppConfig;
-    return {
+
+    // 復号処理
+    const decryptedConfig: AppConfig = {
       ...defaultConfig,
       ...parsed,
-      llm: { ...defaultConfig.llm, ...parsed.llm },
-      mcp: { ...defaultConfig.mcp, ...parsed.mcp },
+      llm: {
+        ...defaultConfig.llm,
+        ...parsed.llm,
+        // APIキーを復号
+        apiKeyEncrypted: decryptField(parsed.llm?.apiKeyEncrypted || ""),
+      },
+      mcp: {
+        ...defaultConfig.mcp,
+        ...parsed.mcp,
+        // MCPサーバーごとのAPIキーを復号
+        servers: (parsed.mcp?.servers || []).map((server) => ({
+          ...server,
+          apiKeyEncrypted: decryptField(server.apiKeyEncrypted || ""),
+        })),
+      },
       ui: { ...defaultConfig.ui, ...parsed.ui },
     };
+
+    return decryptedConfig;
   } catch (err) {
     console.error("Failed to read config, using defaults", err);
     return defaultConfig;
@@ -100,5 +131,24 @@ export function saveConfig(config: AppConfig) {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
-  fs.writeFileSync(getConfigPath(), JSON.stringify(config, null, 2), "utf8");
+
+  // 保存用にデータを暗号化する（メモリ上のconfigは変更しないようクローン）
+  const configToSave = {
+    ...config,
+    llm: {
+      ...config.llm,
+      // APIキーを暗号化
+      apiKeyEncrypted: encryptField(config.llm.apiKeyEncrypted),
+    },
+    mcp: {
+      ...config.mcp,
+      // MCPサーバーごとのAPIキーを暗号化
+      servers: config.mcp.servers.map((server) => ({
+        ...server,
+        apiKeyEncrypted: encryptField(server.apiKeyEncrypted || ""),
+      })),
+    },
+  };
+
+  fs.writeFileSync(getConfigPath(), JSON.stringify(configToSave, null, 2), "utf8");
 }

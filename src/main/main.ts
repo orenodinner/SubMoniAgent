@@ -1,7 +1,8 @@
 ﻿import { app, BrowserWindow, ipcMain } from "electron";
 import path from "path";
 import crypto from "crypto";
-import { loadConfig, saveConfig, AppConfig } from "./configStore";
+import { loadConfig, saveConfig } from "./configStore";
+import { AppConfig } from "../shared/types";
 import { streamResponse } from "./llmService";
 import { mcpClient } from "./mcpClient";
 

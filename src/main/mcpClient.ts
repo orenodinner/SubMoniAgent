@@ -1,18 +1,5 @@
 ﻿import { EventEmitter } from "events";
-
-export type McpServer = {
-  id: string;
-  name: string;
-  endpoint: string;
-  apiKeyEncrypted?: string;
-  enabled: boolean;
-};
-
-export type McpStatus = {
-  id: string;
-  name: string;
-  connected: boolean;
-};
+import { McpServer, McpStatus } from "../shared/types";
 
 class McpClient extends EventEmitter {
   private servers: McpServer[] = [];

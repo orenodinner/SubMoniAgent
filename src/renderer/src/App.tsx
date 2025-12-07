@@ -2,31 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import CharacterCanvas from "./components/CharacterCanvas";
 import ChatView from "./components/ChatView";
 import SettingsDialog from "./components/SettingsDialog";
-import { useChatStore, ChatState, McpStatus } from "./store/useChatStore";
-
-type AppConfig = {
-  version: number;
-  llm: {
-    provider: string;
-    apiKeyEncrypted: string;
-    defaultModel: string;
-    systemPrompt: string;
-  };
-  mcp: {
-    servers: { id: string; name: string; endpoint: string; enabled: boolean }[];
-  };
-  ui: {
-    theme: "light" | "dark";
-    alwaysOnTop: boolean;
-    spriteSheetPath: string;
-    animationSpeedScale: number;
-    characterPaneWidth: number;
-    screenFilter: string;
-    avatarFilter: string;
-    fontScale: number;
-    showCodecLines: boolean;
-  };
-};
+import { useChatStore, ChatState } from "./store/useChatStore";
+import type { AppConfig, McpStatus } from "../../shared/types";
 
 function formatStatus(state: ChatState) {
   switch (state) {
