@@ -15,6 +15,7 @@
   --character-column: 44%;
   --screen-filter: brightness(0.55) contrast(1.05);
   --avatar-filter: brightness(0.9) contrast(1.1) sepia(0.9) hue-rotate(90deg) saturate(3);
+  --font-scale: 1;
 }
 
 * {
@@ -25,6 +26,7 @@ body {
   margin: 0;
   padding: 0;
   font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: calc(16px * var(--font-scale));
   background: radial-gradient(circle at 20% 20%, rgba(34, 211, 238, 0.1), transparent 35%),
     radial-gradient(circle at 80% 0%, rgba(14, 165, 233, 0.12), transparent 25%),
     var(--bg);
@@ -46,6 +48,7 @@ body {
   height: 100%;
   min-height: 0;
   filter: var(--screen-filter);
+  font-size: calc(16px * var(--font-scale));
 }
 
 .header {
@@ -63,7 +66,7 @@ body {
   align-items: center;
   gap: 10px;
   font-family: "Press Start 2P", "Inter", sans-serif;
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale));
   letter-spacing: 1px;
 }
 
@@ -73,7 +76,7 @@ body {
   color: var(--accent);
   padding: 6px 10px;
   border-radius: 10px;
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   font-weight: 600;
 }
 
@@ -141,6 +144,37 @@ body {
   position: relative;
 }
 
+.canvas-frame::before,
+.canvas-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.canvas-frame::before {
+  background: repeating-linear-gradient(
+      to bottom,
+      rgba(50, 255, 190, 0.18) 0,
+      rgba(50, 255, 190, 0.18) 1px,
+      rgba(0, 0, 0, 0) 2px,
+      rgba(0, 0, 0, 0) 4px
+    ),
+    linear-gradient(135deg, rgba(34, 211, 238, 0.12), rgba(14, 165, 233, 0.02));
+  mix-blend-mode: screen;
+  opacity: 0.8;
+  animation: codec-scan 6s linear infinite;
+}
+
+.canvas-frame::after {
+  background: radial-gradient(circle at 20% 20%, rgba(34, 211, 238, 0.12), transparent 45%),
+    radial-gradient(circle at 80% 10%, rgba(34, 211, 238, 0.08), transparent 40%),
+    repeating-linear-gradient(90deg, rgba(0, 30, 30, 0.6) 0, rgba(0, 30, 30, 0.6) 1px, transparent 3px, transparent 6px);
+  mix-blend-mode: lighten;
+  opacity: 0.35;
+  animation: codec-flicker 1.4s steps(2, end) infinite;
+}
+
 .chat-area {
   grid-area: chat;
   display: flex;
@@ -164,7 +198,7 @@ body {
   color: var(--accent);
   padding: 6px 10px;
   border-radius: 10px;
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   font-weight: 600;
 }
 
@@ -239,7 +273,7 @@ body {
 .meta {
   display: flex;
   gap: 12px;
-  font-size: 11px;
+  font-size: calc(11px * var(--font-scale));
   color: var(--muted);
   margin-top: 6px;
 }
@@ -262,7 +296,7 @@ body {
   padding: 8px 10px;
   min-height: 34px;
   resize: vertical;
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale));
 }
 
 .send-btn {
@@ -327,6 +361,23 @@ body {
   padding: 10px;
 }
 
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.slider-row input[type="range"] {
+  flex: 1;
+}
+
+.slider-value {
+  color: var(--muted);
+  font-size: calc(12px * var(--font-scale));
+  min-width: 56px;
+  text-align: right;
+}
+
 .settings-actions {
   display: flex;
   justify-content: flex-end;
@@ -340,7 +391,7 @@ body {
   padding: 10px 12px;
   background: rgba(17, 24, 39, 0.7);
   color: var(--text);
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale));
   margin-bottom: 12px;
   line-height: 1.5;
   overflow-wrap: anywhere;
@@ -369,12 +420,12 @@ body {
 
 .oauth-hint {
   color: var(--muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
 }
 
 .oauth-error {
   color: var(--error);
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   margin-bottom: 6px;
 }
 
@@ -388,8 +439,11 @@ body {
   min-height: 0;
   object-fit: contain;
   object-position: center;
-  filter: var(--avatar-filter);
-  transition: filter 120ms ease;
+  image-rendering: pixelated;
+  filter: var(--avatar-filter) saturate(1.2) contrast(1.1);
+  mix-blend-mode: screen;
+  animation: codec-wobble 5s ease-in-out infinite;
+  transition: filter 120ms ease, transform 160ms ease;
 }
 
 .character-meta {
@@ -405,7 +459,7 @@ body {
   border-radius: 10px;
   padding: 3px 8px;
   color: var(--text);
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   line-height: 1.2;
   min-height: 20px;
 }
@@ -436,7 +490,7 @@ body {
 
   .character-state {
     margin-top: 6px;
-    font-size: 12px;
+    font-size: calc(12px * var(--font-scale));
   }
 
   .chat-area {
@@ -446,7 +500,7 @@ body {
   .bubble {
     max-width: 80%;
     padding: 10px 11px;
-    font-size: 13px;
+    font-size: calc(13px * var(--font-scale));
   }
 
   .messages {
@@ -461,13 +515,52 @@ body {
 
   .textbox {
     min-height: 40px;
-    font-size: 13px;
+    font-size: calc(13px * var(--font-scale));
   }
 
   .send-btn,
   .model-select {
     height: 42px;
     padding: 0 12px;
+  }
+}
+
+@keyframes codec-scan {
+  0% {
+    background-position: 0 0, 0 0;
+  }
+  100% {
+    background-position: 0 100%, 0 0;
+  }
+}
+
+@keyframes codec-flicker {
+  0% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 0.3;
+  }
+}
+
+@keyframes codec-wobble {
+  0% {
+    transform: translateY(0) scaleX(1.005);
+  }
+  25% {
+    transform: translateY(-0.5%) scaleX(1.01);
+  }
+  50% {
+    transform: translateY(0.6%) scaleX(1.002);
+  }
+  75% {
+    transform: translateY(-0.3%) scaleX(1.008);
+  }
+  100% {
+    transform: translateY(0) scaleX(1.005);
   }
 }
 ::-webkit-scrollbar {

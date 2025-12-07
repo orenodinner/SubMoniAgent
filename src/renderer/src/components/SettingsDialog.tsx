@@ -26,6 +26,7 @@ type AppConfig = {
     characterPaneWidth: number;
     screenFilter: string;
     avatarFilter: string;
+    fontScale: number;
   };
 };
 
@@ -135,16 +136,33 @@ export default function SettingsDialog({ config, onSave, onClose, connectionInfo
           アバターフィルター（黒→緑など色味調整）
           <input
             type="text"
-            value={local.ui.avatarFilter}
-            placeholder="brightness(0.9) contrast(1.1) sepia(0.9) hue-rotate(90deg) saturate(3)"
-            onChange={(e) => setLocal({ ...local, ui: { ...local.ui, avatarFilter: e.target.value } })}
-          />
-        </label>
+          value={local.ui.avatarFilter}
+          placeholder="brightness(0.9) contrast(1.1) sepia(0.9) hue-rotate(90deg) saturate(3)"
+          onChange={(e) => setLocal({ ...local, ui: { ...local.ui, avatarFilter: e.target.value } })}
+        />
+      </label>
 
-        <label>
-          常に手前に表示
+      <label>
+        表示文字サイズ
+        <div className="slider-row">
           <input
-            type="checkbox"
+            type="range"
+            min="0.8"
+            max="3"
+            step="0.05"
+            value={local.ui.fontScale}
+            onChange={(e) =>
+              setLocal({ ...local, ui: { ...local.ui, fontScale: parseFloat(e.target.value) || 1 } })
+            }
+          />
+          <span className="slider-value">{Math.round((local.ui.fontScale || 1) * 100)}%</span>
+        </div>
+      </label>
+
+      <label>
+        常に手前に表示
+        <input
+          type="checkbox"
             checked={local.ui.alwaysOnTop}
             onChange={(e) => setLocal({ ...local, ui: { ...local.ui, alwaysOnTop: e.target.checked } })}
           />

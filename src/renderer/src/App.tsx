@@ -23,6 +23,7 @@ type AppConfig = {
     characterPaneWidth: number;
     screenFilter: string;
     avatarFilter: string;
+    fontScale: number;
   };
 };
 
@@ -72,6 +73,7 @@ export default function App() {
         "--screen-filter": config?.ui.screenFilter,
         "--avatar-filter": config?.ui.avatarFilter,
         "--character-column": `${(paneWidth * 100).toFixed(2)}%`,
+        "--font-scale": config?.ui.fontScale ?? 1,
       } as React.CSSProperties),
     [config, paneWidth]
   );

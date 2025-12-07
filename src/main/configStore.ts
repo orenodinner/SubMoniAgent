@@ -22,6 +22,7 @@ export type AppConfig = {
     characterPaneWidth: number;
     screenFilter: string;
     avatarFilter: string;
+    fontScale: number;
   };
 };
 
@@ -52,6 +53,7 @@ const defaultConfig: AppConfig = {
     characterPaneWidth: 0.44,
     screenFilter: "brightness(0.55) contrast(1.05)",
     avatarFilter: "brightness(0.9) contrast(1.1) sepia(0.9) hue-rotate(90deg) saturate(3)",
+    fontScale: 1,
   },
 };
 
