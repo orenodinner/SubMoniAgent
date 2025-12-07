@@ -1,6 +1,6 @@
-﻿import { create } from "zustand";
+import { create } from "zustand";
 import { nanoid } from "nanoid";
-import type { McpStatus } from "../../../shared/types";
+import type { LlmModel, McpStatus } from "../../../shared/types";
 
 export type ChatState = "idle" | "listening" | "thinking" | "speaking" | "error";
 
@@ -19,13 +19,20 @@ type Store = {
   currentModel: string;
   sessionId: string;
   mcpStatuses: McpStatus[];
+  errorMessage?: string;
+  availableModels: LlmModel[];
+  modelsError?: string;
   setStatus: (status: ChatState) => void;
   addMessage: (message: Message) => void;
   appendAssistantChunk: (assistantId: string, chunk: string) => void;
   finalizeAssistantMessage: (assistantId: string, content: string, model?: string) => void;
+  handleError: (payload: { assistantId?: string; message: string; code?: string }) => void;
   setMcpStatuses: (statuses: McpStatus[]) => void;
   setModel: (model: string) => void;
   sendMessage: (text: string) => Promise<void>;
+  abortMessage: (assistantId: string) => Promise<void>;
+  setAvailableModels: (models: LlmModel[]) => void;
+  loadModels: () => Promise<void>;
 };
 
 export const useChatStore = create<Store>((set, get) => ({
@@ -34,6 +41,9 @@ export const useChatStore = create<Store>((set, get) => ({
   currentModel: "gpt-4.1-mini",
   sessionId: nanoid(),
   mcpStatuses: [],
+  errorMessage: undefined,
+  availableModels: [],
+  modelsError: undefined,
   setStatus: (status) => set({ status }),
   setModel: (model) => set({ currentModel: model }),
   addMessage: (message) => set((state) => ({ messages: [...state.messages, message] })),
@@ -49,6 +59,33 @@ export const useChatStore = create<Store>((set, get) => ({
         msg.id === assistantId ? { ...msg, content, streaming: false, model } : msg
       ),
     })),
+  handleError: ({ assistantId, message, code }) =>
+    set((state) => {
+      const now = new Date().toISOString();
+      let updated = false;
+      const messages = state.messages.map((msg) => {
+        if (assistantId && msg.id === assistantId) {
+          updated = true;
+          return { ...msg, content: `エラー: ${message}`, streaming: false };
+        }
+        return msg;
+      });
+
+      if (!updated) {
+        messages.push({
+          id: `error-${Date.now()}`,
+          role: "assistant",
+          content: `エラー: ${message}`,
+          timestamp: now,
+        });
+      }
+
+      return {
+        messages,
+        status: code === "aborted" ? "idle" : "error",
+        errorMessage: message,
+      };
+    }),
   setMcpStatuses: (statuses) => set({ mcpStatuses: statuses }),
   sendMessage: async (text: string) => {
     const trimmed = text.trim();
@@ -78,7 +115,25 @@ export const useChatStore = create<Store>((set, get) => ({
     });
 
     if (result?.error) {
-      set({ status: "error" });
+      get().handleError({ assistantId, message: result.error });
+    }
+  },
+  abortMessage: async (assistantId: string) => {
+    if (!window.api?.abortMessage) return;
+    await window.api.abortMessage(assistantId);
+  },
+  setAvailableModels: (models: LlmModel[]) => set({ availableModels: models }),
+  loadModels: async () => {
+    if (!window.api?.listModels) return;
+    const result = await window.api.listModels();
+    const models = result?.models ?? [];
+    set({
+      availableModels: models,
+      modelsError: result?.error,
+    });
+
+    if (models.length > 0 && !models.some((m) => m.id === get().currentModel)) {
+      set({ currentModel: models[0].id });
     }
   },
 }));

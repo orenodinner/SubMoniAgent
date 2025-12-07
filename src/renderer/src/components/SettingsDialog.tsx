@@ -1,17 +1,27 @@
-﻿import React, { useEffect, useState } from "react";
-import type { AppConfig } from "../../../shared/types";
+import React, { useEffect, useState } from "react";
+import type { AppConfig, LlmModel } from "../../../shared/types";
 
 export type SettingsDialogProps = {
   config: AppConfig;
   onSave: (config: AppConfig) => void;
   onClose: () => void;
   connectionInfo: { connectedCount: number; totalServers: number };
+  models: LlmModel[];
+  modelsError?: string;
 };
 
-export default function SettingsDialog({ config, onSave, onClose, connectionInfo }: SettingsDialogProps) {
+export default function SettingsDialog({
+  config,
+  onSave,
+  onClose,
+  connectionInfo,
+  models,
+  modelsError,
+}: SettingsDialogProps) {
   const [local, setLocal] = useState<AppConfig>(config);
   const [oauthLoading, setOauthLoading] = useState(false);
   const [oauthError, setOauthError] = useState<string | null>(null);
+  const [modelQuery, setModelQuery] = useState("");
 
   useEffect(() => setLocal(config), [config]);
 
@@ -48,20 +58,51 @@ export default function SettingsDialog({ config, onSave, onClose, connectionInfo
       <div className="settings-card">
         <h2>設定</h2>
         <div className="settings-info">
-          <div>• MCP接続: {connectionInfo.connectedCount}/{connectionInfo.totalServers || 0}</div>
-          <div>• システムプロンプト: {local.llm.systemPrompt || "未設定"}</div>
+          <div>? MCP接続: {connectionInfo.connectedCount}/{connectionInfo.totalServers || 0}</div>
+          <div>? システムプロンプト: {local.llm.systemPrompt || "未設定"}</div>
         </div>
 
         <label>
+          LLMプロバイダー
+          <select
+            value={local.llm.provider}
+            onChange={(e) => setLocal({ ...local, llm: { ...local.llm, provider: e.target.value } })}
+          >
+            <option value="openai">OpenAI (互換API)</option>
+            <option value="openrouter">OpenRouter</option>
+          </select>
+        </label>
+
+        <label>
           デフォルトモデル
+          <div className="model-search-row">
+            <input
+              type="text"
+              className="model-search"
+              placeholder="モデルを検索"
+              value={modelQuery}
+              onChange={(e) => setModelQuery(e.target.value)}
+            />
+          </div>
           <select
             value={local.llm.defaultModel}
             onChange={(e) => setLocal({ ...local, llm: { ...local.llm, defaultModel: e.target.value } })}
           >
-            <option value="gpt-4.1-mini">gpt-4.1-mini</option>
-            <option value="gpt-4.1">gpt-4.1</option>
-            <option value="o1-mini">o1-mini</option>
+            {(modelQuery
+              ? models.filter(
+                  (m) =>
+                    m.id.toLowerCase().includes(modelQuery.toLowerCase()) ||
+                    m.name.toLowerCase().includes(modelQuery.toLowerCase())
+                )
+              : models
+            ).map((model) => (
+              <option key={model.id} value={model.id}>
+                {model.name}
+              </option>
+            ))}
           </select>
+          {modelsError && <div className="oauth-error">モデル取得エラー: {modelsError}</div>}
+          {!models.length && <div className="oauth-hint">モデル一覧が取得できませんでした。APIキーとプロバイダーを確認してください。</div>}
         </label>
 
         <label>

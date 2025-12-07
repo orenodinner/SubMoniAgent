@@ -2,11 +2,13 @@
 
 contextBridge.exposeInMainWorld("api", {
   sendMessage: (payload) => ipcRenderer.invoke("chat:sendMessage", payload),
+  abortMessage: (assistantId) => ipcRenderer.invoke("chat:abort", assistantId),
   getSettings: () => ipcRenderer.invoke("settings:get"),
   saveSettings: (config) => ipcRenderer.invoke("settings:save", config),
   listMcpServers: () => ipcRenderer.invoke("mcp:listServers"),
   getMcpStatus: () => ipcRenderer.invoke("mcp:getStatus"),
   startOpenRouterOAuth: () => ipcRenderer.invoke("oauth:openrouter"),
+  listModels: () => ipcRenderer.invoke("models:list"),
   onAssistantChunk: (callback) => {
     const listener = (_event, data) => callback(data);
     ipcRenderer.on("chat:assistantChunk", listener);
@@ -21,6 +23,11 @@ contextBridge.exposeInMainWorld("api", {
     const listener = (_event, state) => callback(state);
     ipcRenderer.on("chat:stateUpdate", listener);
     return () => ipcRenderer.removeListener("chat:stateUpdate", listener);
+  },
+  onChatError: (callback) => {
+    const listener = (_event, error) => callback(error);
+    ipcRenderer.on("chat:error", listener);
+    return () => ipcRenderer.removeListener("chat:error", listener);
   },
   onMcpStatusChanged: (callback) => {
     const listener = (_event, status) => callback(status);

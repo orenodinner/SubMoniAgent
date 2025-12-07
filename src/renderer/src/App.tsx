@@ -32,12 +32,17 @@ export default function App() {
     setMcpStatuses,
     mcpStatuses,
     setModel,
+    availableModels,
+    loadModels,
+    modelsError,
+    handleError,
   } = useChatStore();
 
   const [input, setInput] = useState("");
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [paneWidth, setPaneWidth] = useState(0.44);
+  const [modelQuery, setModelQuery] = useState("");
   const paneWidthRef = useRef(paneWidth);
   const shellRef = useRef<HTMLDivElement | null>(null);
 
@@ -61,9 +66,13 @@ export default function App() {
     window.api.getSettings().then((cfg) => {
       setConfig(cfg);
       setPaneWidth(cfg?.ui?.characterPaneWidth ?? 0.44);
+      if (cfg?.llm?.defaultModel) {
+        setModel(cfg.llm.defaultModel);
+      }
     });
     window.api.getMcpStatus?.().then((status) => setMcpStatuses(status));
-  }, [setMcpStatuses]);
+    loadModels();
+  }, [setMcpStatuses, loadModels, setModel]);
 
   useEffect(() => {
     if (!window.api) return;
@@ -79,14 +88,16 @@ export default function App() {
     const offState = window.api.onStateUpdate((state) => setStatus(state as ChatState));
 
     const offMcp = window.api.onMcpStatusChanged((status: McpStatus[]) => setMcpStatuses(status));
+    const offError = window.api.onChatError?.((error) => handleError(error));
 
     return () => {
       offChunk?.();
       offMessage?.();
       offState?.();
       offMcp?.();
+      offError?.();
     };
-  }, [appendAssistantChunk, finalizeAssistantMessage, setStatus, setMcpStatuses]);
+  }, [appendAssistantChunk, finalizeAssistantMessage, setStatus, setMcpStatuses, handleError]);
 
   const connectedCount = useMemo(
     () => mcpStatuses.filter((s) => s.connected).length,
@@ -136,15 +147,37 @@ export default function App() {
     const saved = await window.api.saveSettings(next);
     setConfig(saved);
     setPaneWidth(saved.ui.characterPaneWidth ?? paneWidth);
+    if (saved.llm.defaultModel) {
+      setModel(saved.llm.defaultModel);
+    }
+    await loadModels();
     setSettingsOpen(false);
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter" && e.ctrlKey) {
       e.preventDefault();
       handleSend();
     }
   };
+
+  const modelOptions =
+    availableModels.length > 0
+      ? availableModels
+      : [
+          { id: "gpt-4.1-mini", name: "gpt-4.1-mini" },
+          { id: "gpt-4.1", name: "gpt-4.1" },
+          { id: "o1-mini", name: "o1-mini" },
+        ];
+
+  const filteredModelOptions = (() => {
+    const query = modelQuery.trim().toLowerCase();
+    if (!query) return modelOptions;
+    const matched = modelOptions.filter(
+      (model) => model.id.toLowerCase().includes(query) || model.name.toLowerCase().includes(query)
+    );
+    return matched.length > 0 ? matched : modelOptions;
+  })();
 
   return (
     <div className="app-shell" style={cssVars} ref={shellRef}>
@@ -171,18 +204,29 @@ export default function App() {
       </div>
 
       <div className="input-area">
+        <div className="model-search-row">
+          <input
+            type="text"
+            className="model-search"
+            placeholder="モデルを検索"
+            value={modelQuery}
+            onChange={(e) => setModelQuery(e.target.value)}
+          />
+          <select className="model-select" value={currentModel} onChange={(e) => setModel(e.target.value)}>
+            {filteredModelOptions.map((model) => (
+              <option key={model.id} value={model.id}>
+                {model.name}
+              </option>
+            ))}
+          </select>
+        </div>
         <textarea
           className="textbox"
-          placeholder="質問を入力… (Enterで送信 / Shift+Enterで改行)"
+          placeholder="質問を入力… (Enterで改行 / Ctrl+Enterで送信)"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKeyDown}
         />
-        <select className="model-select" value={currentModel} onChange={(e) => setModel(e.target.value)}>
-          <option value="gpt-4.1-mini">gpt-4.1-mini</option>
-          <option value="gpt-4.1">gpt-4.1</option>
-          <option value="o1-mini">o1-mini</option>
-        </select>
         <button className="send-btn" onClick={handleSend}>
           <span>送信</span> <span>→</span>
         </button>
@@ -194,6 +238,8 @@ export default function App() {
           onSave={handleSaveSettings}
           onClose={() => setSettingsOpen(false)}
           connectionInfo={{ connectedCount, totalServers }}
+          models={modelOptions}
+          modelsError={modelsError}
         />
       )}
     </div>

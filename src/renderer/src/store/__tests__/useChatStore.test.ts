@@ -11,6 +11,9 @@ describe("useChatStore", () => {
       currentModel: "gpt-4.1-mini",
       sessionId: initialSessionId,
       mcpStatuses: [],
+      errorMessage: undefined,
+      availableModels: [],
+      modelsError: undefined,
     });
   });
 

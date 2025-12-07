@@ -52,3 +52,9 @@ export type ChatMessage = {
   role: "user" | "assistant";
   content: string;
 };
+
+export type LlmModel = {
+  id: string;
+  name: string;
+  description?: string;
+};
